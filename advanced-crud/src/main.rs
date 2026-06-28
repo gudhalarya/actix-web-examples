@@ -1,7 +1,7 @@
 use actix_web::{App, HttpServer, web};
 use argon2::{
-    Argon2, PasswordHasher,
-    password_hash::{SaltString, rand_core::OsRng},
+    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
+    password_hash::{self, SaltString, rand_core::OsRng},
 };
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::env;
@@ -46,6 +46,17 @@ fn hash_password(password: &str) -> Result<String, AppError> {
         .hash_password(password.as_bytes(), &salt)?
         .to_string(); // convert to String
     Ok(hashed_password)
+}
+
+fn verify_password(password: &str, hash: &str) -> bool {
+    let parsed_hash = match PasswordHash::new(hash) {
+        Ok(h) => h,
+        Err(_) => return false,
+    };
+
+    Argon2::default()
+        .verify_password(password.as_bytes(), &parsed_hash)
+        .is_ok()
 }
 
 #[actix_web::main]
